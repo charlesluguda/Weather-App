@@ -1,27 +1,19 @@
+from flask import Flask, render_template, request
 import os
 from dotenv import load_dotenv
 import requests
 
-def get_current_weather():
+app = Flask(__name__)
+
+# Load environment variables from .env file
+load_dotenv()
+
+def get_current_weather(city):
     """
     Retrieves current weather conditions for a specified city using OpenWeatherMap API.
     """
-    print("\n*** Get Current Weather Conditions ***\n")
-
-    # Load environment variables from .env file
-    load_dotenv()
-
-    # Prompt user to enter city name
-    city = input("\nEnter city name: ")
-
-    # Retrieve API key from environment variables
     api_key = os.getenv("API_KEY")
-
-    # Construct API request URL
     request_url = f'https://api.openweathermap.org/data/2.5/weather?appid={api_key}&q={city}&units=imperial'
-
-    # Print the API request URL (for testing purposes)
-    print(f"Request URL: {request_url}")
 
     try:
         # Make HTTP GET request to OpenWeatherMap API with timeout (e.g., 10 seconds)
@@ -30,15 +22,28 @@ def get_current_weather():
         # Check if request was successful
         if response.status_code == 200:
             weather_data = response.json()
-            print("\nCurrent Weather Conditions:")
-            print(f"City: {weather_data['name']}")
-            print(f"Temperature: {weather_data['main']['temp']} °F")
-            print(f"Weather Description: {weather_data['weather'][0]['description']}")
+            return {
+                "city": weather_data['name'],
+                "temperature": weather_data['main']['temp'],
+                "description": weather_data['weather'][0]['description']
+            }
         else:
-            print(f"\nFailed to retrieve weather data. Status Code: {response.status_code}")
+            return None
     except requests.exceptions.Timeout:
-        print("\nRequest timed out. Please try again later.")
+        return None
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/weather', methods=['POST'])
+def weather():
+    city = request.form['city']
+    weather_data = get_current_weather(city)
+    if weather_data:
+        return render_template('weather.html', weather_data=weather_data)
+    else:
+        return render_template('error.html')
 
 if __name__ == "__main__":
-    # Call the function to get current weather conditions
-    get_current_weather()
+    app.run(debug=True)
